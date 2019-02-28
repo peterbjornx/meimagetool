@@ -13,18 +13,19 @@ import java.util.Arrays;
 
 public class MFSChunkStore {
     private static final int MFS_PAGE_SIZE = 8192;
-    private static final int MFS_CHUNK_SIZE = 64;
+    public static final int MFS_CHUNK_SIZE = 64;
     private static final int MFS_DATA_CHUNKS = 122;
-    private static final int MFS_SYSTEM_CHUNKS = 121;
+    private static final int MFS_SYSTEM_CHUNKS = 120;
     private int PartOffset;
     private MFSBackingStore Store;
     private MFSPageInfo PageInfo[];
-    private MFSSystemChunkRef SystemChunks[] = new MFSSystemChunkRef[14*121];
+    private MFSSystemChunkRef SystemChunks[];
     private MFSSystemPage SystemPages[];
     private MFSDataPage DataPages[];
     private int ErasedPage;
     private int SystemPageCount = 0;
     private int SystemChunkCount = 0;
+    private int RawSystemChunkCount = 0;
     private int DataPageCount = 0;
     private int SystemCapacity = 0;
     private int PageCount;
@@ -37,31 +38,36 @@ public class MFSChunkStore {
         PageInfo = new MFSPageInfo[size/MFS_PAGE_SIZE];
 
         PageCount = size / MFS_PAGE_SIZE;
-        SystemPageCount = PageCount / 12;
-        DataPageCount   = PageCount - SystemPageCount - 1;
-        SystemChunkCount= SystemPageCount * MFS_SYSTEM_CHUNKS;
+        SystemPageCount     = PageCount / 12;
+        DataPageCount       = PageCount - SystemPageCount - 1;
+        RawSystemChunkCount= SystemPageCount * MFS_SYSTEM_CHUNKS;
         DataChunkCount  = DataPageCount * MFS_DATA_CHUNKS;
-        SystemCapacity  = SystemChunkCount * MFS_CHUNK_SIZE;
-
-        for ( int i = 0; i < SystemChunkCount; i++ )
-            SystemChunks[i] = new MFSSystemChunkRef();
-
         SystemPages = new MFSSystemPage[ SystemPageCount ];
         DataPages = new MFSDataPage[ DataPageCount ];
 
         int spCount = 0, dpCount = 0;
+        SystemChunkCount = RawSystemChunkCount;
 
         for ( int i = 0; i < PageInfo.length; i++ ) {
             int pageStart = i * MFS_PAGE_SIZE + PartOffset;
             PageInfo[i] = new MFSPageInfo( Store.Read(pageStart, MFSPageInfo.METADATA_SIZE) );
+            int firstChunk = PageInfo[i].getFirstChunk();
             pageStart += MFSPageInfo.METADATA_SIZE;
+            if ( firstChunk > 0 && firstChunk < SystemChunkCount )
+                SystemChunkCount = firstChunk;
             if ( PageInfo[i].getMagic() == 0 )
                 ErasedPage = i;
-            else if ( PageInfo[i].getFirstChunk() == 0 )
+            else if ( firstChunk == 0 )
                 SystemPages[spCount++] = new MFSSystemPage( i, Store.Read(pageStart, MFSSystemPage.METADATA_SIZE) );
             else
                 DataPages[dpCount++] = new MFSDataPage( i, Store.Read(pageStart, MFSDataPage.METADATA_SIZE) );
         }
+
+        SystemCapacity  = SystemChunkCount * MFS_CHUNK_SIZE;
+        SystemChunks = new MFSSystemChunkRef[SystemChunkCount];
+
+        for ( int i = 0; i < SystemChunkCount; i++ )
+            SystemChunks[i] = new MFSSystemChunkRef();
 
         HandleSystemPages();
 
@@ -82,6 +88,25 @@ public class MFSChunkStore {
             }
         }
 
+    }
+
+    public void SyncMetadata() throws MFSException {
+        for ( MFSSystemPage syspage : SystemPages ) {
+            int i = syspage.getPageIndex();
+            int pageStart = i * MFS_PAGE_SIZE + PartOffset;
+            PageInfo[i].UpdateChecksum();
+            Store.Write(pageStart, PageInfo[i].encode());
+            pageStart += MFSPageInfo.METADATA_SIZE;
+            Store.Write(pageStart, syspage.encode());
+        }
+        for ( MFSDataPage datapage : DataPages ) {
+            int i = datapage.getPageIndex();
+            int pageStart = i * MFS_PAGE_SIZE + PartOffset;
+            PageInfo[i].UpdateChecksum();
+            Store.Write(pageStart, PageInfo[i].encode());
+            pageStart += MFSPageInfo.METADATA_SIZE;
+            Store.Write(pageStart, datapage.encode());
+        }
     }
 
     public int AllocateDataChunk() throws MFSException {
@@ -109,7 +134,7 @@ public class MFSChunkStore {
                 metadataSize += MFSSystemPage.METADATA_SIZE;
             }
         } else {
-            int dataIndex = chunkPos - SystemCapacity * 64;
+            int dataIndex = chunkPos;
             for (MFSDataPage DataPage : DataPages) {
                 MFSPageInfo p = PageInfo[DataPage.getPageIndex()];
                 int pageStartChunk = p.getFirstChunk();
@@ -151,15 +176,9 @@ public class MFSChunkStore {
         int chunkIndex = -1;
         int chunkPage = 0;
         int metadataSize = MFSPageInfo.METADATA_SIZE;
-        if ( chunkPos * 64 >= SystemCapacity ) {
+        if ( chunkPos * 64 < SystemCapacity ) {
             MFSSystemChunkRef chunkref = SystemChunks[chunkPos];
-            if ( chunkref.USN == 0 )
-                chunkPage = -1;
-            else {
-                chunkIndex = chunkref.Chunk;
-                chunkPage = chunkref.Page;
-                metadataSize += MFSSystemPage.METADATA_SIZE;
-            }
+            metadataSize += MFSSystemPage.METADATA_SIZE;
             for (MFSSystemPage SystemPage : SystemPages) {
 
                 if (PageInfo[SystemPage.getPageIndex()].getFirstChunk() != 0)
@@ -176,10 +195,10 @@ public class MFSChunkStore {
                 chunkref.Page  = chunkPage  = SystemPage.getPageIndex();
                 chunkref.Chunk = chunkIndex = SystemPage.AllocateChunk(chunkPos);
                 chunkref.USN   = pageUSN;
-
+                break;
             }
         } else {
-            int dataIndex = chunkPos - SystemCapacity * 64;
+            int dataIndex = chunkPos;
             for (MFSDataPage DataPage : DataPages) {
                 MFSPageInfo p = PageInfo[DataPage.getPageIndex()];
                 int pageStartChunk = p.getFirstChunk();
@@ -207,11 +226,10 @@ public class MFSChunkStore {
 
         byte[] data = {(byte) (crc_calc & 0xFF), (byte) ((crc_calc >> 8) & 0xFF)};
 
-        Store.Write( readOffset, buffer,0,MFS_CHUNK_SIZE + 2 );
+        Store.Write( readOffset, buffer,0,MFS_CHUNK_SIZE );
         Store.Write( readOffset + MFS_CHUNK_SIZE, data,0, 2);
 
     }
-
 
     public void ReadBytes(int pos, byte[] buffer, int offset, int count) throws MFSException {
         byte chunkData[] = new byte[MFS_CHUNK_SIZE];
@@ -257,7 +275,7 @@ public class MFSChunkStore {
             if ( chunkSize > MFS_CHUNK_SIZE)
                 chunkSize = MFS_CHUNK_SIZE;
 
-            if ( chunkStart < 0 )
+            if ( chunkOffset < 0 )
                 chunkOffset = 0;
 
             if ( bufferOffset < 0 )
@@ -289,12 +307,23 @@ public class MFSChunkStore {
         return ByteBuffer.wrap(temp).order(ByteOrder.LITTLE_ENDIAN);
     }
 
+    public void WriteSystemBytes(int pos, ByteBuffer data) throws MFSException {
+        byte[] temp = new byte[data.limit()];
+        data.position(0);
+        data.get(temp);
+        WriteSystemBytes(pos, temp, 0, temp.length);
+    }
+
     public int getDataPageCount() {
         return DataPageCount;
     }
 
     public int getDataChunkCount() {
         return DataChunkCount;
+    }
+
+    public int getSystemChunkCount() {
+        return SystemChunkCount;
     }
 
     public class MFSSystemChunkRef {

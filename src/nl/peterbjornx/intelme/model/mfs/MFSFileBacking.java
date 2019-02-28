@@ -18,13 +18,21 @@ public class MFSFileBacking implements MFSBackingStore {
     }
 
     @Override
-    public void Write(int pos, byte[] data, int offset, int count) {
-        throw new UnsupportedOperationException("Not implemented yet");
+    public void Write(int pos, byte[] data, int offset, int count) throws MFSException {
+        try{
+            file.seek(pos);
+            file.write(data, offset, count);
+        } catch (IOException e) {
+            throw new MFSException(e);
+        }
     }
 
     @Override
-    public void Write(int pos, ByteBuffer buffer) {
-        throw new UnsupportedOperationException("Not implemented yet");
+    public void Write(int pos, ByteBuffer buffer) throws MFSException {
+        byte[] data = new byte[buffer.limit()];
+        buffer.position(0);
+        buffer.get(data);
+        Write(pos,data,0,data.length);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package nl.peterbjornx.intelme.model.mfs.page;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class MFSDataPage {
 
@@ -26,11 +27,20 @@ public class MFSDataPage {
         }
     }
 
+    public ByteBuffer encode() {
+        ByteBuffer buf = ByteBuffer.allocate(METADATA_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+        for (boolean FreeChunk : FreeChunks) buf.put(FreeChunk ? (byte) 0xff : 0);
+        buf.position(0);
+        return buf;
+    }
+
     public int AllocateChunk() {
         for ( int i = 0; i < FreeChunks.length; i++ ) {
             if ( !FreeChunks[i] )
                 continue;
+            FreeCount--;
             FreeChunks[i] = false;
+            return i;
         }
         return -1;
     }

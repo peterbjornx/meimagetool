@@ -1,8 +1,10 @@
 package nl.peterbjornx.intelme.model.mfs.page;
 
+import nl.peterbjornx.intelme.util.CrcUtil;
 import nl.peterbjornx.intelme.util.MFSException;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class MFSPageInfo {
 
@@ -21,8 +23,34 @@ public class MFSPageInfo {
 
     }
 
-    public MFSPageInfo(ByteBuffer buf) {
+    public MFSPageInfo(ByteBuffer buf) throws MFSException {
         decode(buf);
+        verify();
+    }
+
+    public ByteBuffer encode() {
+        ByteBuffer buf = ByteBuffer.allocate(18).order(ByteOrder.LITTLE_ENDIAN);
+        buf.putInt(Magic);
+        buf.putInt(UpdateSerialNumber);
+        buf.putInt(EraseCount);
+        buf.putShort((short)NextEraseIndex);
+        buf.putShort((short)FirstChunk);
+        buf.put((byte) Checksum);
+        buf.put((byte) b0);
+        buf.position(0);
+        return buf;
+    }
+
+    private int CalculateChecksum() {
+        ByteBuffer buf = encode();
+        buf.position(0);
+        byte[] data = new byte[16];
+        buf.get(data);
+        return CrcUtil.Crc8(data, data.length);
+    }
+
+    public void UpdateChecksum() {
+        Checksum = CalculateChecksum();
     }
 
     public void decode( ByteBuffer buf ) {
@@ -36,13 +64,16 @@ public class MFSPageInfo {
     }
 
     public void verify() throws MFSException {
+        if ( Magic == 0 )
+            return;
         if ( Magic != MFS_PAGE_MAGIC )
             throw new MFSException("Page magic mismatch");
         if ( UpdateSerialNumber == 0 )
             throw new MFSException("Update serial number is zero");
         if ( EraseCount == 0 )
             throw new MFSException("Erase count is zero");
-        //TODO: Verify CRC16 of MFS page header
+        if ( Checksum != CalculateChecksum() )
+            throw new MFSException("Page info checksum invalid");
     }
 
     public int getMagic() {
@@ -72,5 +103,4 @@ public class MFSPageInfo {
     public int getB0() {
         return b0;
     }
-
 }

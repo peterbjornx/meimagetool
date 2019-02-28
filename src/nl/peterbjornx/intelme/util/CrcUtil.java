@@ -15,7 +15,7 @@ public class CrcUtil {
         pos = 0;
         while ( pos < count )
         {
-            idx = data[pos++] ^ (crc >> 8);
+            idx = (data[pos++] ^ (crc >> 8)) & 0xFF;
             crc = (crc16_tab[idx] ^ (crc << 8)) & 0x3FFF;
         }
         return crc;
@@ -53,6 +53,19 @@ public class CrcUtil {
         crc = (crc16_tab[(prev >> 8) ^ (crc >> 8)] ^ (crc << 8)) & 0xFFFF;
         return crc;
     }
+
+    public static int Crc8(byte[] data, int count) {
+        int crc = 1;
+        for ( int i = 0; i < count; i++ ) {
+            int v = data[i] & 0xff;
+            v ^= crc;
+            crc = crc8_tabL[ v & 0xF ] ^ crc8_tabH[ v >> 4 ];
+        }
+        return crc;
+    }
+
+    public static int crc8_tabL[] = {0, 7, 14, 9, 28, 27, 18, 21, 56, 63, 54, 49, 36, 35, 42, 45};
+    public static int crc8_tabH[] = {0, 112, 224, 144, 199, 183, 39, 87, 137, 249, 105, 25, 78, 62, 174, 222};
 
     public static int crc16_tab[] =
     {

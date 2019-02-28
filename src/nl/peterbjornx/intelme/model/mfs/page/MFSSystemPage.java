@@ -3,6 +3,7 @@ package nl.peterbjornx.intelme.model.mfs.page;
 import nl.peterbjornx.intelme.util.CrcUtil;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class MFSSystemPage {
     public static final int METADATA_SIZE = 242;
@@ -27,6 +28,14 @@ public class MFSSystemPage {
 
         unscrambleIndices();
 
+    }
+
+    public ByteBuffer encode() {
+        ByteBuffer buf = ByteBuffer.allocate(METADATA_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+        for (int sidx : ScrambledIndices)
+            buf.putShort((short) sidx);
+        buf.position(0);
+        return buf;
     }
 
     private void unscrambleIndices() {
