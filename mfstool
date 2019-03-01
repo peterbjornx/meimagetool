@@ -1,0 +1,6 @@
+#!/bin/sh
+
+JARPATH=out/meimagetool.jar
+MAINCLASS=nl.peterbjornx.intelme.entry.MFSTool
+
+java -cp $JARPATH $MAINCLASS $@
