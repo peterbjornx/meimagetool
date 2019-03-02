@@ -1,0 +1,11 @@
+#!/bin/sh
+INJARPATH="$1"
+OUTFLPATH="$3"
+MAINCLASS="$2"
+TEMPLATE="""
+#!/bin/bash
+\nJARPATH=\"\`which \"\$0\"\`\"\nMAINCLASS=$MAINCLASS\n\nexec java -cp \"\$JARPATH\" \$MAINCLASS $@\n
+"""
+echo -e $TEMPLATE > "$OUTFLPATH"
+cat "$INJARPATH" >> "$OUTFLPATH"
+chmod +x "$OUTFLPATH"

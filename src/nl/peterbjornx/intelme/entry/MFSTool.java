@@ -113,10 +113,13 @@ public class MFSTool {
         System.err.println("       mfstool   /?");
         System.err.println();
         System.err.println("The MFS tool allows compiling and extracting MFS volumes.");
-        System.err.println("  The format used by the tool consists of a directory containing a metadata XML");
-        System.err.println("  and a separate binary for each partition. The names of these binaries must");
-        System.err.println("  match the short partition name as configured in the metadata.");
-        System.err.println();
+        System.err.println("  The tool allows extracting MFS volumes to files, but only supports the");
+        System.err.println("  FAT level of the FS, so no 'varFS' directories are supported and file names");
+        System.err.println("  are either the file number or selected from a hardcoded list of names. The");
+        System.err.println("  tool does not support modfiying files or erasing pages, so should be used");
+        System.err.println("  only with empty template partitions.");
+        System.err.println("  These can be acquired in the way described by Dmitry Sklyarov in his paper");
+        System.err.println("    'Intel ME: Flash File System Explained'.");
         System.err.println("  The modes of operation supported by the tool are:");
         System.err.println("      x     - Extract a binary to its constituent files.");
         System.err.println("      c     - Create a binary from its constituent files and an empty template.");

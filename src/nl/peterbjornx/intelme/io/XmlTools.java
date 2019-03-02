@@ -2,11 +2,11 @@ package nl.peterbjornx.intelme.io;
 
 import com.thoughtworks.xstream.XStream;
 import nl.peterbjornx.intelme.model.MERegionHeader;
+import nl.peterbjornx.intelme.model.cfg.ConfigArchive;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 
 public class XmlTools {
     private static XStream ourXstream;
@@ -14,6 +14,7 @@ public class XmlTools {
         ourXstream = new XStream();
         ourXstream.autodetectAnnotations(true);
         ourXstream.processAnnotations(MERegionHeader.class);
+        ourXstream.processAnnotations(ConfigArchive.class);
     }
     public static void SerializeXML( Object o, File file ) throws FileNotFoundException {
 

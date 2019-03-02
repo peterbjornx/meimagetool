@@ -1,6 +1,0 @@
-#!/bin/sh
-
-JARPATH=out/meimagetool.jar
-MAINCLASS=nl.peterbjornx.intelme.entry.RegionTool
-
-java -cp $JARPATH $MAINCLASS $@

@@ -7,7 +7,6 @@ import nl.peterbjornx.intelme.model.parts.Partition;
 import nl.peterbjornx.intelme.util.MEFormatException;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
