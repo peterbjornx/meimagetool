@@ -3,7 +3,7 @@ RELEASEDIR="out/meimagetool-$1"
 mkdir -p "$RELEASEDIR"
 scripts/makesh out/meimagetool.jar nl.peterbjornx.intelme.entry.RegionTool "$RELEASEDIR/meregiontool"
 scripts/makesh out/meimagetool.jar nl.peterbjornx.intelme.entry.MFSTool "$RELEASEDIR/mfstool"
-scripts/makesh out/meimagetool.jar nl.peterbjornx.intelme.entry.RegionTool "$RELEASEDIR/meconfigtool"
+scripts/makesh out/meimagetool.jar nl.peterbjornx.intelme.entry.ConfigTool "$RELEASEDIR/meconfigtool"
 cp LICENSE readme.md "$RELEASEDIR/"
 cd out
 tar czf "meimagetool-$1.tar.gz" "meimagetool-$1"
